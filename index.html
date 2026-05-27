@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --card2: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --primary: #2563eb;
+      --primary-h: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --ok: #059669;
+      --ok-bg: #ecfdf5;
+      --warn: #d97706;
+      --warn-bg: #fffbeb;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --r: 14px;
+      --nav: 60px;
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-h: #2563eb;
+      --primary-bg: #1e3a5f;
+      --ok: #10b981;
+      --ok-bg: #064e3b;
+      --warn: #fbbf24;
+      --warn-bg: #451a03;
+      --danger: #f87171;
+      --danger-bg: #450a0a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f172a; --card: #1e293b; --card2: #334155; --border: #475569;
+        --text: #f1f5f9; --muted: #94a3b8; --primary: #3b82f6; --primary-h: #2563eb;
+        --primary-bg: #1e3a5f; --ok: #10b981; --ok-bg: #064e3b;
+        --warn: #fbbf24; --warn-bg: #451a03; --danger: #f87171; --danger-bg: #450a0a;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; line-height: 1.5; }
+    #app { display: flex; min-height: 100dvh; }
+    aside { width: 220px; flex-shrink: 0; background: var(--card); border-right: 1px solid var(--border); display: none; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    @media(min-width:768px){ aside { display: flex; } }
+    .logo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--primary); padding: 4px 10px 20px; }
+    .logo svg { width: 22px; height: 22px; }
+    .nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 10px; border-radius: 10px; border: none; background: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; text-align: left; transition: background .15s, color .15s; }
+    .nav-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-btn:hover { background: var(--card2); color: var(--text); }
+    .nav-btn.active { background: var(--primary-bg); color: var(--primary); }
+    main { flex: 1; min-width: 0; padding: 20px 16px calc(var(--nav) + 20px); }
+    @media(min-width:768px){ main { padding: 24px 28px; max-width: 860px; } }
+    nav#bot { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav); background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 100; }
+    @media(min-width:768px){ nav#bot { display: none; } }
+    .bot-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: none; background: none; color: var(--muted); font-size: 10px; font-weight: 500; cursor: pointer; transition: color .15s; padding: 0; }
+    .bot-btn svg { width: 21px; height: 21px; }
+    .bot-btn.active { color: var(--primary); }
+    .sec { display: none; }
+    .sec.on { display: block; }
+    .ph { margin-bottom: 20px; }
+    .ph h1 { font-size: 22px; font-weight: 700; }
+    .ph p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid4 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 14px; }
+    @media(min-width:560px){ .grid4 { grid-template-columns: repeat(4,1fr); } }
+    .mcard { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
+    .mcard .mlabel { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .mcard .mval { font-size: 26px; font-weight: 700; line-height: 1.2; margin: 5px 0 3px; }
+    .mcard .munit { font-size: 12px; color: var(--muted); }
+    .mcard .msub { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+    .mcard .mst { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .mcard .mst::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background: currentColor; }
+    .st-ok .mval, .st-ok .mst { color: var(--ok); }
+    .st-warn .mval, .st-warn .mst { color: var(--warn); }
+    .st-danger .mval, .st-danger .mst { color: var(--danger); }
+    .st-none .mval { color: var(--text); }
+    .st-none .mst { color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; margin-bottom: 14px; }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .card-title svg { width: 16px; height: 16px; color: var(--muted); }
+    .chart-box { position: relative; height: 190px; }
+    .countdown { display: flex; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 20px; margin-bottom: 14px; }
+    .cd-num { font-size: 38px; font-weight: 700; color: var(--primary); line-height: 1; min-width: 56px; text-align: center; }
+    .cd-label { font-size: 14px; font-weight: 500; }
+    .cd-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ai-box { background: var(--primary-bg); border-radius: var(--r); padding: 16px; margin-bottom: 14px; border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent); }
+    .ai-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .ai-title { font-size: 13px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px; }
+    .ai-title svg { width: 15px; height: 15px; }
+    .ai-body { font-size: 14px; line-height: 1.65; color: var(--text); white-space: pre-wrap; }
+    .ai-ph { font-size: 13px; color: var(--muted); }
+    .pbar-wrap { margin-top: 6px; }
+    .pbar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .pbar { height: 7px; background: var(--card2); border-radius: 99px; overflow: hidden; border: 1px solid var(--border); }
+    .pbar-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width .5s ease; }
+    .fg { margin-bottom: 13px; }
+    .fl { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 5px; }
+    .fi { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); outline: none; transition: border .15s; font-family: inherit; }
+    .fi:focus { border-color: var(--primary); }
+    select.fi { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E"); background-position: right 10px center; background-repeat: no-repeat; background-size: 16px; padding-right: 32px; }
+    .fhint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .bmi-box { background: var(--card2); border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .bmi-box .bmi-label { font-size: 13px; color: var(--muted); }
+    .bmi-box .bmi-val { font-size: 22px; font-weight: 700; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; font-family: inherit; white-space: nowrap; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:not(:disabled):hover { background: var(--primary-h); }
+    .btn-ghost { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-ai { background: var(--primary-bg); color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-ai:not(:disabled):hover { background: var(--primary); color: #fff; }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+    .tabs { display: flex; gap: 4px; background: var(--card2); border-radius: 10px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border); }
+    .tab { flex: 1; padding: 7px 4px; border-radius: 7px; font-size: 13px; font-weight: 600; border: none; background: none; color: var(--muted); cursor: pointer; transition: all .15s; font-family: inherit; }
+    .tab.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .tbl-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: var(--card2); padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--card2); }
+    .test-row { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .test-row:last-child { border-bottom: none; }
+    .test-dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .test-dot svg { width: 12px; height: 12px; }
+    .test-name { font-size: 14px; font-weight: 500; }
+    .test-norm { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .meal-row { padding: 13px 0; border-bottom: 1px solid var(--border); }
+    .meal-row:last-child { border-bottom: none; }
+    .meal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .meal-time { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .meal-kcal { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .meal-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+    .meal-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .meal-why { font-size: 12px; color: var(--ok); margin-top: 5px; }
+    .macros { display: flex; gap: 14px; margin-top: 7px; flex-wrap: wrap; }
+    .macro { font-size: 12px; color: var(--muted); }
+    .macro strong { color: var(--text); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info .tl { font-size: 14px; }
+    .toggle-info .td { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .toggle { position: relative; width: 42px; height: 23px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .tslider { position: absolute; inset: 0; background: var(--border); border-radius: 12px; cursor: pointer; transition: background .2s; }
+    .tslider::before { content: ''; position: absolute; width: 17px; height: 17px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+    .toggle input:checked + .tslider { background: var(--primary); }
+    .toggle input:checked + .tslider::before { transform: translateX(19px); }
+    .norm-ok { color: var(--ok); font-weight: 600; }
+    .norm-warn { color: var(--warn); font-weight: 600; }
+    .norm-danger { color: var(--danger); font-weight: 600; }
+    .disclaimer { font-size: 11px; color: var(--muted); text-align: center; padding: 6px 0 4px; }
+    .empty { text-align: center; padding: 36px 16px; color: var(--muted); }
+    .empty svg { width: 40px; height: 40px; margin: 0 auto 10px; display: block; opacity: .35; }
+    .empty p { font-size: 13px; }
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp .65s linear infinite; vertical-align: middle; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+    #toast { position: fixed; bottom: calc(var(--nav) + 12px); left: 50%; transform: translateX(-50%) translateY(16px); background: #1a202c; color: #fff; padding: 9px 18px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 999; white-space: nowrap; }
+    @media(min-width:768px){ #toast { bottom: 20px; } }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Health Tracker
+    </div>
+  </aside>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="s-dash" class="sec on">
+      <div class="ph">
+        <h1>Дашборд</h1>
+        <p id="dash-date"></p>
+      </div>
+      <div class="grid4" id="metric-cards"></div>
+      <div class="countdown" id="cd-block">
+        <div class="cd-num" id="cd-num">—</div>
+        <div>
+          <div class="cd-label">дней до следующей сдачи анализов</div>
+          <div class="cd-sub" id="cd-sub">Настройте дату в Настройках</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span style="display:flex;align-items:center;gap:7px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Динамика за 7 дней
+          </span>
+        </div>
+        <div class="chart-box"><canvas id="trend-chart"></canvas></div>
+      </div>
+      <div class="ai-box">
+        <div class="ai-head">
+          <div class="ai-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.3-6.7-2.1 2.1M6.4 17.6l-2.1 2.1m12.3 0-2.1-2.1M6.4 6.4 4.3 4.3"/></svg>
+            ИИ-анализ состояния
+          </div>
+          <button class="btn btn-ai btn-sm" id="btn-analysis" onclick="runAnalysis(this)">Анализировать ↗</button>
+        </div>
+        <div id="ai-analysis" class="ai-ph">Нажмите «Анализировать» для получения персональных рекомендаций на основе ваших показателей.</div>
+      </div>
+      <p class="disclaimer">⚠️ Приложение не является медицинским изделием. При критических отклонениях обратитесь к врачу.</p>
+    </section>
+
+    <!-- INPUT -->
+    <section id="s-input" class="sec">
+      <div class="ph"><h1>Ввод данных</h1><p>Физические показатели и анализы</p></div>
+      <div class="tabs">
+        <button class="tab on" onclick="switchTab(this,'tp-phys','tp-labs','tp-hist')">Физические</button>
+        <button class="tab" onclick="switchTab(this,'tp-labs','tp-phys','tp-hist')">Анализы</button>
+        <button class="tab" onclick="switchTab(this,'tp-hist','tp-phys','tp-labs');renderHistory()">История</button>
+      </div>
+      <div id="tp-phys">
+        <div class="card">
+          <div class="grid2">
+            <div class="fg"><label class="fl">Вес (кг)</label><input id="fw" type="number" class="fi" placeholder="75" step="0.1" min="30" max="300" oninput="updateBMI()"></div>
+            <div class="fg"><label class="fl">Рост (см)</label><input id="fh" type="number" class="fi" placeholder="175" step="1" min="100" max="250" oninput="updateBMI()"></div>
+            <div class="fg"><label class="fl">Давление сист.</label><input id="fsys" type="number" class="fi" placeholder="120" min="70" max="250"></div>
+            <div class="fg"><label class="fl">Давление диаст.</label><input id="fdia" type="number" class="fi" placeholder="80" min="40" max="150"></div>
+            <div class="fg"><label class="fl">Пульс (уд/мин)</label><input id="fpulse" type="number" class="fi" placeholder="72" min="30" max="200"></div>
+            <div class="fg"><label class="fl">Возраст</label><input id="fage" type="number" class="fi" placeholder="30" min="18" max="100"></div>
+            <div class="fg"><label class="fl">Пол</label><select id="fgender" class="fi"><option value="male">Мужской</option><option value="female">Женский</option></select></div>
+            <div class="fg"><label class="fl">Активность</label><select id="fact" class="fi"><option value="sedentary">Низкая</option><option value="light">Лёгкая</option><option value="moderate" selected>Умеренная</option><option value="active">Высокая</option></select></div>
+          </div>
+          <div class="bmi-box">
+            <div class="bmi-label">ИМТ (автоматически)</div>
+            <div class="bmi-val" id="bmi-preview">—</div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="savePhysical()">Сохранить показатели</button>
+        </div>
+      </div>
+      <div id="tp-labs" style="display:none">
+        <div class="card">
+          <div class="grid2">
+            <div class="fg"><label class="fl">Глюкоза (ммоль/л)</label><input id="lglu" type="number" class="fi" placeholder="4.5" step="0.1" min="0" max="30"><div class="fhint">Норма: 3.9 – 5.5</div></div>
+            <div class="fg"><label class="fl">Гемоглобин (г/л)</label><input id="lhgb" type="number" class="fi" placeholder="140" step="1" min="50" max="250"><div class="fhint">М: 130–170 / Ж: 120–150</div></div>
+            <div class="fg"><label class="fl">Холестерин (ммоль/л)</label><input id="lchol" type="number" class="fi" placeholder="4.8" step="0.1" min="0" max="20"><div class="fhint">Норма: &lt; 5.2</div></div>
+            <div class="fg"><label class="fl">ТТГ (мкМЕ/мл)</label><input id="ltsh" type="number" class="fi" placeholder="2.1" step="0.01" min="0" max="50"><div class="fhint">Норма: 0.4 – 4.0</div></div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="saveLabs()">Сохранить анализы</button>
+        </div>
+      </div>
+      <div id="tp-hist" style="display:none">
+        <div id="hist-content"></div>
+      </div>
+    </section>
+
+    <!-- TESTS -->
+    <section id="s-tests" class="sec">
+      <div class="ph"><h1>Анализы</h1><p>Плановые и персональные рекомендации</p></div>
+      <div class="countdown">
+        <div class="cd-num" id="tcd-num">—</div>
+        <div>
+          <div class="cd-label">дней до плановой сдачи</div>
+          <div class="cd-sub" id="tcd-sub">Настройте дату в Настройках</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ежемесячно</div>
+        <div class="test-row"><div class="test-dot" style="background:var(--ok-bg);color:var(--ok)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">ОАК — Общий анализ крови</div><div class="test-norm">Гемоглобин, лейкоциты, тромбоциты, СОЭ</div></div></div>
+        <div class="test-row"><div class="test-dot" style="background:var(--ok-bg);color:var(--ok)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">Глюкоза натощак</div><div class="test-norm">Норма: 3.9 – 5.5 ммоль/л</div></div></div>
+        <div class="test-row"><div class="test-dot" style="background:var(--ok-bg);color:var(--ok)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">ОАМ — Общий анализ мочи</div><div class="test-norm">Белок, глюкоза, лейкоциты, эритроциты</div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Раз в 3 месяца</div>
+        <div class="test-row"><div class="test-dot" style="background:var(--warn-bg);color:var(--warn)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">Липидный профиль</div><div class="test-norm">Общий холестерин &lt; 5.2, ЛПНП, ЛПВП, триглицериды</div></div></div>
+        <div class="test-row"><div class="test-dot" style="background:var(--warn-bg);color:var(--warn)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">ТТГ — Тиреотропный гормон</div><div class="test-norm">Норма: 0.4 – 4.0 мкМЕ/мл</div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Раз в 6 месяцев</div>
+        <div class="test-row"><div class="test-dot" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">Витамин D</div><div class="test-norm">Норма: 30 – 100 нг/мл</div></div></div>
+        <div class="test-row"><div class="test-dot" style="background:var(--primary-bg);color:var(--primary)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="test-name">Витамин B12</div><div class="test-norm">Норма: 200 – 900 пг/мл</div></div></div>
+      </div>
+      <div class="ai-box">
+        <div class="ai-head">
+          <div class="ai-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3m-3.3-6.7-2.1 2.1M6.4 17.6l-2.1 2.1m12.3 0-2.1-2.1M6.4 6.4 4.3 4.3"/></svg>
+            Персональный план (ИИ)
+          </div>
+          <button class="btn btn-ai btn-sm" onclick="runTestPlan(this)">Сформировать ↗</button>
+        </div>
+        <div id="ai-tests" class="ai-ph">ИИ составит персональный план с учётом ваших показателей, возраста и пола.</div>
+      </div>
+    </section>
+
+    <!-- NUTRITION -->
+    <section id="s-nutrition" class="sec">
+      <div class="ph"><h1>Питание</h1><p>Меню на сегодня</p></div>
+      <div class="card">
+        <div class="card-title">
+          <span>Калории за день</span>
+          <span id="kcal-total" style="color:var(--primary);font-size:14px;font-weight:700">0 / 0 ккал</span>
+        </div>
+        <div class="pbar-wrap">
+          <div class="pbar"><div class="pbar-fill" id="kcal-bar" style="width:0%"></div></div>
+        </div>
+        <div id="macros-row" style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap"></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:14px;font-weight:600">Меню</div>
+          <button class="btn btn-ai btn-sm" onclick="runMenu(this)">Обновить (ИИ) ↗</button>
+        </div>
+        <div style="padding:0 20px" id="meals-list">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+            <p>Нажмите «Обновить (ИИ)» для генерации меню на основе ваших показателей</p>
+          </div>
+        </div>
+      </div>
+      <p class="disclaimer">Меню носит рекомендательный характер и не является медицинской диетой.</p>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="s-settings" class="sec">
+      <div class="ph"><h1>Настройки</h1></div>
+      <div class="card">
+        <div class="card-title">Личные данные</div>
+        <div class="fg"><label class="fl">Имя</label><input id="sname" type="text" class="fi" placeholder="Ваше имя"></div>
+        <div class="grid2">
+          <div class="fg"><label class="fl">Дата рождения</label><input id="sdob" type="date" class="fi"></div>
+          <div class="fg"><label class="fl">Целевой вес (кг)</label><input id="stw" type="number" class="fi" placeholder="70" min="30" max="300"></div>
+        </div>
+        <div class="fg"><label class="fl">День месяца для сдачи анализов</label><input id="stday" type="number" class="fi" placeholder="1" min="1" max="28"></div>
+        <button class="btn btn-primary" onclick="saveProfile()">Сохранить профиль</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Напоминания</div>
+        <div class="toggle-row"><div class="toggle-info"><div class="tl">Ежемесячное напоминание</div><div class="td">Напоминание о сдаче анализов</div></div><label class="toggle"><input type="checkbox" id="rm" checked onchange="saveReminders()"><span class="tslider"></span></label></div>
+        <div class="toggle-row"><div class="toggle-info"><div class="tl">Еженедельные уведомления</div><div class="td">Напоминание о внесении показателей</div></div><label class="toggle"><input type="checkbox" id="rw" checked onchange="saveReminders()"><span class="tslider"></span></label></div>
+        <div class="toggle-row"><div class="toggle-info"><div class="tl">Ежедневные напоминания</div><div class="td">Утреннее напоминание об измерении давления</div></div><label class="toggle"><input type="checkbox" id="rd" onchange="saveReminders()"><span class="tslider"></span></label></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ИИ-компонент (Anthropic API)</div>
+        <div class="fg"><label class="fl">API Key</label><input id="skey" type="password" class="fi" placeholder="sk-ant-..."><div class="fhint">Ключ хранится только в браузере. <a href="https://console.anthropic.com" target="_blank">Получить ключ →</a></div></div>
+        <button class="btn btn-primary" onclick="saveApiKey()">Сохранить ключ</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Тема оформления</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="setTheme('light')" id="t-light">☀️ Светлая</button>
+          <button class="btn btn-ghost btn-sm" onclick="setTheme('dark')" id="t-dark">🌙 Тёмная</button>
+          <button class="btn btn-ghost btn-sm" onclick="setTheme('auto')" id="t-auto">⚙️ Авто</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600">Таблица медицинских норм</div>
+        <div class="tbl-wrap" style="border:none;border-radius:0">
+          <table>
+            <thead><tr><th>Показатель</th><th>Норма</th></tr></thead>
+            <tbody>
+              <tr><td>ИМТ</td><td><span class="norm-ok">18.5 – 24.9</span></td></tr>
+              <tr><td>Систолическое давление</td><td><span class="norm-ok">&lt; 130 мм рт.ст.</span></td></tr>
+              <tr><td>Диастолическое давление</td><td><span class="norm-ok">&lt; 85 мм рт.ст.</span></td></tr>
+              <tr><td>Пульс в покое</td><td><span class="norm-ok">60 – 100 уд/мин</span></td></tr>
+              <tr><td>Глюкоза натощак</td><td><span class="norm-ok">3.9 – 5.5 ммоль/л</span></td></tr>
+              <tr><td>Общий холестерин</td><td><span class="norm-ok">&lt; 5.2 ммоль/л</span></td></tr>
+              <tr><td>Гемоглобин (мужчины)</td><td><span class="norm-ok">130 – 170 г/л</span></td></tr>
+              <tr><td>Гемоглобин (женщины)</td><td><span class="norm-ok">120 – 150 г/л</span></td></tr>
+              <tr><td>ТТГ</td><td><span class="norm-ok">0.4 – 4.0 мкМЕ/мл</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">Данные</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Все данные хранятся локально в браузере. Облачная синхронизация не выполняется.</p>
+        <button class="btn btn-danger" onclick="clearData()">Удалить все данные</button>
+      </div>
+    </section>
+  </main>
+
+  <nav id="bot"></nav>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const KEY = 'ht_v1';
+
+function emptyDB() {
+  return {
+    ms: [],   // measurements
+    lr: [],   // lab results
+    profile: { name:'', dob:'', gender:'male', targetWeight:null, testDay:1, reminders:{monthly:true,weekly:true,daily:false}, apiKey:'', theme:'auto' },
+    nutrition: { menu:null, ts:null }
+  };
+}
+
+let db = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || emptyDB(); } catch { return emptyDB(); } })();
+
+function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+
+// ── NORMS ────────────────────────────────────────────────
+function st(v, ok, warn) { if(v===null||v===undefined||isNaN(v)) return 'none'; if(ok(v)) return 'ok'; if(warn(v)) return 'warn'; return 'danger'; }
+const bmiSt   = v => st(v, x=>x>=18.5&&x<=24.9, x=>x>=17&&x<30);
+const sysSt   = v => st(v, x=>x<130, x=>x<145);
+const diaSt   = v => st(v, x=>x<85, x=>x<95);
+const pulseSt = v => st(v, x=>x>=60&&x<=100, x=>x>=50&&x<=110);
+const gluSt   = v => st(v, x=>x>=3.9&&x<=5.5, x=>x>5.5&&x<7.0);
+const cholSt  = v => st(v, x=>x<5.2, x=>x<6.2);
+const hgbSt   = (v,g) => st(v, x=>g==='female'?x>=120&&x<=150:x>=130&&x<=170, x=>g==='female'?x>=110&&x<=160:x>=120&&x<=180);
+const tshSt   = v => st(v, x=>x>=0.4&&x<=4.0, x=>x>=0.1&&x<=6.0);
+const stLabel = s => ({ok:'Норма',warn:'Отклонение',danger:'Критично',none:''})[s]||'';
+
+function calcBMI(w, h) { if(!w||!h) return null; return Math.round(w/((h/100)**2)*10)/10; }
+
+function calcKcal(w,h,age,gender,act) {
+  if(!w||!h||!age) return 2000;
+  let bmr = gender==='female' ? 10*w+6.25*h-5*age-161 : 10*w+6.25*h-5*age+5;
+  return Math.round(bmr * ({sedentary:1.2,light:1.375,moderate:1.55,active:1.725}[act]||1.375));
+}
+
+// ── NAV ──────────────────────────────────────────────────
+const SECTIONS = [
+  { id:'dash',      label:'Дашборд',   icon:'<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
+  { id:'input',     label:'Данные',    icon:'<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>' },
+  { id:'tests',     label:'Анализы',   icon:'<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>' },
+  { id:'nutrition', label:'Питание',   icon:'<path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>' },
+  { id:'settings',  label:'Настройки', icon:'<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/>' },
+];
+
+let cur = 'dash';
+
+function icon(paths) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:19px;height:19px">${paths}</svg>`; }
+
+function renderNav() {
+  const sidebar = document.getElementById('sidebar');
+  // Keep logo, rebuild nav buttons
+  const logo = sidebar.querySelector('.logo');
+  sidebar.innerHTML = '';
+  if(logo) sidebar.appendChild(logo);
+  SECTIONS.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'nav-btn' + (cur===s.id?' active':'');
+    b.innerHTML = icon(s.icon) + ' ' + s.label;
+    b.onclick = () => go(s.id);
+    sidebar.appendChild(b);
+  });
+
+  const bot = document.getElementById('bot');
+  bot.innerHTML = SECTIONS.map(s => `
+    <button class="bot-btn${cur===s.id?' active':''}" onclick="go('${s.id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${s.icon}</svg>
+      <span>${s.label}</span>
+    </button>`).join('');
+}
+
+function go(id) {
+  document.querySelectorAll('.sec').forEach(el => el.classList.remove('on'));
+  document.getElementById('s-'+id).classList.add('on');
+  cur = id;
+  renderNav();
+  if(id==='dash') renderDash();
+  if(id==='input') renderHistory();
+  if(id==='tests') renderCountdown();
+  if(id==='nutrition') renderNutrition();
+  if(id==='settings') loadSettings();
+  window.scrollTo(0,0);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+let chart = null;
+
+function renderDash() {
+  const m = db.ms[db.ms.length-1] || {};
+  const l = db.lr[db.lr.length-1] || {};
+  const gender = m.gender || db.profile.gender || 'male';
+
+  document.getElementById('dash-date').textContent =
+    new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const bmi = m.bmi || null;
+  const bpSt = (!m.systolic) ? 'none' :
+    (sysSt(m.systolic)==='danger'||diaSt(m.diastolic)==='danger') ? 'danger' :
+    (sysSt(m.systolic)==='warn'||diaSt(m.diastolic)==='warn') ? 'warn' : 'ok';
+
+  const cards = [
+    { label:'Вес / ИМТ', val: m.weight ? m.weight : '—', unit: m.weight?'кг':'', sub: bmi?`ИМТ ${bmi}`:'', st: bmiSt(bmi) },
+    { label:'Давление',  val: m.systolic&&m.diastolic ? `${m.systolic}/${m.diastolic}` : '—', unit: m.systolic?'мм рт.ст.':'', st: bpSt },
+    { label:'Пульс',     val: m.pulse||'—', unit: m.pulse?'уд/мин':'', st: pulseSt(m.pulse) },
+    { label:'Глюкоза',   val: l.glucose||'—', unit: l.glucose?'ммоль/л':'', st: gluSt(l.glucose) },
+  ];
+
+  document.getElementById('metric-cards').innerHTML = cards.map(c => `
+    <div class="mcard st-${c.st}">
+      <div class="mlabel">${c.label}</div>
+      <div class="mval">${c.val}<span class="munit"> ${c.unit}</span></div>
+      ${c.sub ? `<div class="msub">${c.sub}</div>` : ''}
+      <div class="mst">${stLabel(c.st)}</div>
+    </div>`).join('');
+
+  renderCountdown();
+  renderChart();
+}
+
+function renderCountdown() {
+  const day = db.profile.testDay || 1;
+  const now = new Date();
+  let next = new Date(now.getFullYear(), now.getMonth(), day);
+  if(next <= now) next = new Date(now.getFullYear(), now.getMonth()+1, day);
+  const days = Math.ceil((next-now)/(864e5));
+  const dateStr = next.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+  ['cd-num','tcd-num'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=days; });
+  const sub = `Следующая сдача: ${dateStr}`;
+  ['cd-sub','tcd-sub'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=sub; });
+}
+
+function renderChart() {
+  const canvas = document.getElementById('trend-chart');
+  if(!canvas) return;
+  const data = db.ms.slice(-7);
+  if(chart) { chart.destroy(); chart=null; }
+  if(!data.length) {
+    canvas.parentElement.innerHTML = '<div class="empty"><p>Нет данных для графика. Внесите показатели в разделе «Данные».</p></div>';
+    return;
+  }
+  const labels = data.map(m => { const d=new Date(m.date); return `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`; });
+  const isDark = document.documentElement.getAttribute('data-theme')==='dark' ||
+    (!document.documentElement.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme:dark)').matches);
+  const gc = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+  const tc = isDark ? '#94a3b8' : '#718096';
+  chart = new Chart(canvas, {
+    type:'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Сист.', data:data.map(m=>m.systolic||null), borderColor:'#2563eb', borderWidth:2, tension:.3, pointRadius:4, fill:false },
+        { label:'Диаст.', data:data.map(m=>m.diastolic||null), borderColor:'#7c3aed', borderWidth:2, tension:.3, pointRadius:4, fill:false },
+        { label:'Пульс', data:data.map(m=>m.pulse||null), borderColor:'#dc2626', borderWidth:2, tension:.3, pointRadius:4, fill:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ position:'bottom', labels:{ color:tc, font:{size:12}, boxWidth:12, padding:10 } } },
+      scales:{
+        x:{ grid:{color:gc}, ticks:{color:tc} },
+        y:{ grid:{color:gc}, ticks:{color:tc} }
+      }
+    }
+  });
+}
+
+// ── INPUT ────────────────────────────────────────────────
+function switchTab(btn, show, ...hide) {
+  btn.closest('.tabs').querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  hide.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  document.getElementById(show).style.display = 'block';
+}
+
+function updateBMI() {
+  const w = parseFloat(document.getElementById('fw').value);
+  const h = parseFloat(document.getElementById('fh').value);
+  const bmi = calcBMI(w,h);
+  const el = document.getElementById('bmi-preview');
+  if(bmi) {
+    const s = bmiSt(bmi);
+    el.textContent = bmi;
+    el.style.color = s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--danger)';
+  } else { el.textContent='—'; el.style.color='var(--text)'; }
+}
+
+function savePhysical() {
+  const w = parseFloat(document.getElementById('fw').value)||null;
+  const h = parseFloat(document.getElementById('fh').value)||null;
+  const sys = parseInt(document.getElementById('fsys').value)||null;
+  const dia = parseInt(document.getElementById('fdia').value)||null;
+  const pulse = parseInt(document.getElementById('fpulse').value)||null;
+  const age = parseInt(document.getElementById('fage').value)||null;
+  const gender = document.getElementById('fgender').value;
+  const act = document.getElementById('fact').value;
+  if(!w && !sys && !pulse) { toast('Заполните хотя бы одно поле'); return; }
+  const bmi = calcBMI(w,h);
+  db.ms.push({ date:new Date().toISOString(), weight:w, height:h, systolic:sys, diastolic:dia, pulse, age, gender, activity:act, bmi });
+  db.profile.gender = gender;
+  save();
+  toast('Показатели сохранены ✓');
+  ['fw','fh','fsys','fdia','fpulse'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('bmi-preview').textContent='—';
+}
+
+function saveLabs() {
+  const g = parseFloat(document.getElementById('lglu').value)||null;
+  const h = parseFloat(document.getElementById('lhgb').value)||null;
+  const c = parseFloat(document.getElementById('lchol').value)||null;
+  const t = parseFloat(document.getElementById('ltsh').value)||null;
+  if(!g && !h && !c && !t) { toast('Заполните хотя бы одно поле'); return; }
+  db.lr.push({ date:new Date().toISOString(), glucose:g, hemoglobin:h, cholesterol:c, tsh:t });
+  save();
+  toast('Анализы сохранены ✓');
+  ['lglu','lhgb','lchol','ltsh'].forEach(id => document.getElementById(id).value='');
+}
+
+function renderHistory() {
+  const el = document.getElementById('hist-content');
+  const all = [...db.ms].reverse().slice(0,30);
+  if(!all.length) { el.innerHTML='<div class="empty"><p>История пуста. Добавьте первые измерения.</p></div>'; return; }
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Дата</th><th>Вес</th><th>ИМТ</th><th>Давление</th><th>Пульс</th></tr></thead>
+    <tbody>${all.map(m=>{
+      const bs=bmiSt(m.bmi);
+      return `<tr>
+        <td>${new Date(m.date).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td>
+        <td>${m.weight?m.weight+' кг':'—'}</td>
+        <td class="${bs!=='none'?'norm-'+bs:''}">${m.bmi||'—'}</td>
+        <td>${m.systolic&&m.diastolic?m.systolic+'/'+m.diastolic:'—'}</td>
+        <td>${m.pulse||'—'}</td>
+      </tr>`;}).join('')}
+    </tbody></table></div>`;
+}
+
+// ── NUTRITION ─────────────────────────────────────────────
+function renderNutrition() {
+  const m = db.ms[db.ms.length-1]||{};
+  const kcalTarget = calcKcal(m.weight, m.height, m.age, db.profile.gender||m.gender||'male', m.activity||'moderate');
+  const menu = db.nutrition.menu;
+
+  if(!menu) {
+    document.getElementById('kcal-total').textContent = `0 / ${kcalTarget} ккал`;
+    document.getElementById('kcal-bar').style.width='0%';
+    document.getElementById('macros-row').innerHTML='';
+    return;
+  }
+
+  const meals = menu.meals||[];
+  const totKcal = meals.reduce((s,x)=>s+(x.kcal||0),0);
+  const totP = meals.reduce((s,x)=>s+(x.protein||0),0);
+  const totF = meals.reduce((s,x)=>s+(x.fat||0),0);
+  const totC = meals.reduce((s,x)=>s+(x.carbs||0),0);
+  const pct = Math.min(100, Math.round(totKcal/kcalTarget*100));
+
+  document.getElementById('kcal-total').textContent = `${totKcal} / ${kcalTarget} ккал`;
+  document.getElementById('kcal-bar').style.width = pct+'%';
+  document.getElementById('macros-row').innerHTML = `
+    <div class="macro">Белки: <strong>${Math.round(totP)} г</strong></div>
+    <div class="macro">Жиры: <strong>${Math.round(totF)} г</strong></div>
+    <div class="macro">Углеводы: <strong>${Math.round(totC)} г</strong></div>`;
+
+  const names = ['Завтрак','Перекус','Обед','Перекус','Ужин'];
+  const times = ['08:00','11:00','13:00','16:00','19:00'];
+  document.getElementById('meals-list').innerHTML = meals.map((meal,i)=>`
+    <div class="meal-row">
+      <div class="meal-head">
+        <div class="meal-time">${names[i]||'Приём'} · ${times[i]||''}</div>
+        <div class="meal-kcal">${meal.kcal} ккал</div>
+      </div>
+      <div class="meal-name">${meal.name}</div>
+      <div class="meal-desc">${meal.desc||''}</div>
+      ${meal.why?`<div class="meal-why">✓ ${meal.why}</div>`:''}
+      <div class="macros">
+        <div class="macro">Б: <strong>${meal.protein||'—'} г</strong></div>
+        <div class="macro">Ж: <strong>${meal.fat||'—'} г</strong></div>
+        <div class="macro">У: <strong>${meal.carbs||'—'} г</strong></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── SETTINGS ──────────────────────────────────────────────
+function loadSettings() {
+  const p = db.profile;
+  document.getElementById('sname').value = p.name||'';
+  document.getElementById('sdob').value = p.dob||'';
+  document.getElementById('stw').value = p.targetWeight||'';
+  document.getElementById('stday').value = p.testDay||1;
+  document.getElementById('rm').checked = p.reminders?.monthly ?? true;
+  document.getElementById('rw').checked = p.reminders?.weekly ?? true;
+  document.getElementById('rd').checked = p.reminders?.daily ?? false;
+  document.getElementById('skey').value = p.apiKey||'';
+}
+
+function saveProfile() {
+  db.profile.name = document.getElementById('sname').value.trim();
+  db.profile.dob = document.getElementById('sdob').value;
+  db.profile.targetWeight = parseFloat(document.getElementById('stw').value)||null;
+  db.profile.testDay = Math.min(28,Math.max(1,parseInt(document.getElementById('stday').value)||1));
+  save(); toast('Профиль сохранён ✓');
+}
+
+function saveReminders() {
+  db.profile.reminders = {
+    monthly: document.getElementById('rm').checked,
+    weekly:  document.getElementById('rw').checked,
+    daily:   document.getElementById('rd').checked,
+  };
+  save(); toast('Напоминания сохранены');
+}
+
+function saveApiKey() {
+  db.profile.apiKey = document.getElementById('skey').value.trim();
+  save(); toast('API ключ сохранён ✓');
+}
+
+function setTheme(t) {
+  db.profile.theme = t;
+  save();
+  applyTheme(t);
+}
+
+function applyTheme(t) {
+  if(t==='dark') document.documentElement.setAttribute('data-theme','dark');
+  else if(t==='light') document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+  if(chart) { chart.destroy(); chart=null; renderChart(); }
+}
+
+function clearData() {
+  if(!confirm('Удалить все данные? Это действие необратимо.')) return;
+  localStorage.removeItem(KEY);
+  db = emptyDB();
+  toast('Все данные удалены');
+  renderDash();
+}
+
+// ── AI ────────────────────────────────────────────────────
+async function callClaude(prompt, btn, origLabel) {
+  const key = db.profile.apiKey;
+  if(!key) { toast('Введите API ключ в Настройках'); go('settings'); return null; }
+  if(btn) { btn.disabled=true; btn.innerHTML='<span class="spin"></span> Загрузка...'; }
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    });
+    if(!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e.error?.message||'Ошибка '+r.status); }
+    const d = await r.json();
+    return d.content?.[0]?.text || '';
+  } catch(e) {
+    toast('Ошибка ИИ: '+e.message);
+    return null;
+  } finally {
+    if(btn) { btn.disabled=false; btn.innerHTML=origLabel; }
+  }
+}
+
+async function runAnalysis(btn) {
+  const m = db.ms[db.ms.length-1]||{};
+  const l = db.lr[db.lr.length-1]||{};
+  const lbl = btn.innerHTML;
+  const result = await callClaude(`Ты — медицинский ИИ-ассистент. Проанализируй показатели здоровья и дай краткие рекомендации на русском языке (3-5 предложений). Ты не ставишь диагнозы.
+
+Показатели: вес ${m.weight||'—'} кг, рост ${m.height||'—'} см, ИМТ ${m.bmi||'—'}, давление ${m.systolic||'—'}/${m.diastolic||'—'} мм рт.ст., пульс ${m.pulse||'—'} уд/мин, возраст ${m.age||'—'}, пол ${m.gender==='female'?'женский':'мужской'}.
+Анализы: глюкоза ${l.glucose||'—'} ммоль/л, гемоглобин ${l.hemoglobin||'—'} г/л, холестерин ${l.cholesterol||'—'} ммоль/л, ТТГ ${l.tsh||'—'} мкМЕ/мл.
+
+Укажи что в норме, что требует внимания и конкретные рекомендации.`, btn, lbl);
+  if(result) {
+    const el = document.getElementById('ai-analysis');
+    el.className='ai-body'; el.textContent=result;
+  }
+}
+
+async function runTestPlan(btn) {
+  const m = db.ms[db.ms.length-1]||{};
+  const l = db.lr[db.lr.length-1]||{};
+  const lbl = btn.innerHTML;
+  const result = await callClaude(`Ты — медицинский ИИ-ассистент. Составь персональный план сдачи анализов с периодичностью и кратким обоснованием. Пиши на русском языке, структурированно.
+
+Данные: возраст ${m.age||'—'}, пол ${m.gender==='female'?'женский':'мужской'}, ИМТ ${m.bmi||'—'}, давление ${m.systolic||'—'}/${m.diastolic||'—'}, глюкоза ${l.glucose||'—'} ммоль/л, холестерин ${l.cholesterol||'—'} ммоль/л, ТТГ ${l.tsh||'—'} мкМЕ/мл.`, btn, lbl);
+  if(result) {
+    const el = document.getElementById('ai-tests');
+    el.className='ai-body'; el.textContent=result;
+  }
+}
+
+async function runMenu(btn) {
+  const m = db.ms[db.ms.length-1]||{};
+  const l = db.lr[db.lr.length-1]||{};
+  const kcal = calcKcal(m.weight,m.height,m.age,db.profile.gender||m.gender||'male',m.activity||'moderate');
+  const lbl = btn.innerHTML;
+  const result = await callClaude(`Ты — нутрициолог. Составь меню питания на день (5 приёмов: завтрак, перекус, обед, перекус, ужин) с учётом показателей здоровья.
+
+Суточная норма: ${kcal} ккал. ИМТ: ${m.bmi||'—'}. Давление: ${m.systolic||'—'}/${m.diastolic||'—'}. Глюкоза: ${l.glucose||'—'} ммоль/л. Холестерин: ${l.cholesterol||'—'} ммоль/л. Гемоглобин: ${l.hemoglobin||'—'} г/л. ТТГ: ${l.tsh||'—'} мкМЕ/мл.
+
+Ответь ТОЛЬКО валидным JSON (без markdown, без \`\`\`):
+{"meals":[{"name":"...","desc":"...","kcal":400,"protein":30,"fat":15,"carbs":40,"why":"почему полезно при данных показателях"}]}`, btn, lbl);
+  if(result) {
+    try {
+      const json = result.match(/\{[\s\S]*\}/)?.[0];
+      if(!json) throw new Error('JSON не найден');
+      const menu = JSON.parse(json);
+      if(!Array.isArray(menu.meals)) throw new Error('Неверный формат');
+      db.nutrition.menu = menu;
+      db.nutrition.ts = new Date().toISOString();
+      save();
+      renderNutrition();
+      toast('Меню обновлено ✓');
+    } catch(e) { toast('Ошибка формата меню: '+e.message); }
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>el.classList.remove('show'), 2600);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+applyTheme(db.profile.theme||'auto');
+renderNav();
+renderDash();
+
+// Restore last saved gender/activity in form
+const lastM = db.ms[db.ms.length-1];
+if(lastM) {
+  if(lastM.gender) document.getElementById('fgender').value = lastM.gender;
+  if(lastM.activity) document.getElementById('fact').value = lastM.activity;
+}
+</script>
+</body>
+</html>
